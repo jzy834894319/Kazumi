@@ -199,6 +199,73 @@ void main() {
     );
   });
 
+  test('turns failed XPath challenge response into captcha flow', () async {
+    final engine = RuleEngine(
+      requestExecutor: _FakeExecutor(
+        const [],
+        error: _badResponse('<html>captcha</html>'),
+      ),
+      logFailures: false,
+    );
+
+    await expectLater(
+      engine.search(
+        _config(
+          searchMode: RuleMode.xpath,
+          chapterMode: RuleMode.xpath,
+          antiCrawler: _antiCrawler(),
+        ),
+        'keyword',
+      ),
+      throwsA(isA<CaptchaRequiredException>()),
+    );
+  });
+
+  test('keeps failed non-challenge XPath response as search error', () async {
+    final engine = RuleEngine(
+      requestExecutor: _FakeExecutor(
+        const [],
+        error: _badResponse('<html>forbidden</html>'),
+      ),
+      logFailures: false,
+    );
+
+    await expectLater(
+      engine.search(
+        _config(
+          searchMode: RuleMode.xpath,
+          chapterMode: RuleMode.xpath,
+          antiCrawler: _antiCrawler(),
+        ),
+        'keyword',
+      ),
+      throwsA(isA<SearchErrorException>()),
+    );
+  });
+
+  test('API search does not turn failed challenge response into captcha flow',
+      () async {
+    final engine = RuleEngine(
+      requestExecutor: _FakeExecutor(
+        const [],
+        error: _badResponse('<html>captcha</html>'),
+      ),
+      logFailures: false,
+    );
+
+    await expectLater(
+      engine.search(
+        _config(
+          searchMode: RuleMode.api,
+          chapterMode: RuleMode.xpath,
+          antiCrawler: _antiCrawler(),
+        ),
+        'keyword',
+      ),
+      throwsA(isA<SearchErrorException>()),
+    );
+  });
+
   test('propagates cancellation without wrapping it', () async {
     const cancellation = NetworkException(
       type: NetworkExceptionType.cancel,
@@ -218,6 +285,26 @@ void main() {
       throwsA(same(cancellation)),
     );
   });
+}
+
+NetworkException _badResponse(String body, {int statusCode = 403}) {
+  final requestOptions = RequestOptions(
+    path: 'https://example.com/search?q=keyword',
+  );
+  return NetworkException(
+    type: NetworkExceptionType.badResponse,
+    message: 'server error',
+    statusCode: statusCode,
+    rawError: DioException(
+      requestOptions: requestOptions,
+      response: Response<String>(
+        requestOptions: requestOptions,
+        statusCode: statusCode,
+        data: body,
+      ),
+      type: DioExceptionType.badResponse,
+    ),
+  );
 }
 
 class _FakeExecutor implements RuleRequestExecutor {
