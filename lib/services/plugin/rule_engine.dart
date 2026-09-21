@@ -109,7 +109,30 @@ class RuleEngine {
     // rules may render a different page than the real search response.
     if (config.searchMode == RuleMode.api || config.usePost) return null;
     try {
+      final detected = _xpathStrategy.detectsCaptchaChallenge(
+        raw,
+        config.antiCrawlerConfig,
+      );
+      final markerFlags = <String, bool>{
+        'attentionRequired': raw.contains('Attention Required!'),
+        'justAMoment': raw.contains('Just a moment'),
+        'humanVerifyZh': raw.contains('正在验证您是否是真人'),
+        'blocked': raw.contains('Sorry, you have been blocked'),
+      };
+      KazumiLogger().w(
+        'Plugin: ${config.pluginName} harvested search diagnostics: '
+        'bodyLength=${raw.length}, '
+        'captchaDetected=$detected, '
+        'markers=$markerFlags',
+      );
+      if (detected) return null;
+
       final parsed = _xpathStrategy.parseSearch(raw, config);
+      KazumiLogger().w(
+        'Plugin: ${config.pluginName} harvested search parsed: '
+        'items=${parsed.items.length}, '
+        'diagnostics=${parsed.diagnostics.length}',
+      );
       if (parsed.items.isEmpty) return null;
       _logDiagnostics(config, 'harvested search', parsed.diagnostics);
       return PluginSearchResponse(
@@ -118,9 +141,10 @@ class RuleEngine {
       );
     } catch (error) {
       if (_logFailures) {
-        KazumiLogger().i(
+        KazumiLogger().w(
           'Plugin: ${config.pluginName} harvested page not parseable, '
-          'falling back to re-search ($error)',
+          'falling back to re-search',
+          error: error,
         );
       }
       return null;
@@ -330,6 +354,23 @@ class _DefaultRuleRequestExecutor implements RuleRequestExecutor {
     final verifiedUserAgent = cookieHeader.isNotEmpty
         ? PluginCookieManager.instance.userAgentFor(config.pluginName)
         : null;
+    if (request.includeCookies) {
+      final cookieNames = cookieHeader
+          .split(';')
+          .map((part) => part.trim())
+          .where((part) => part.isNotEmpty && part.contains('='))
+          .map((part) => part.substring(0, part.indexOf('=')))
+          .toSet()
+          .toList()
+        ..sort();
+      KazumiLogger().w(
+        'Plugin: ${config.pluginName} request session diagnostics: '
+        'cookieNames=$cookieNames, '
+        'hasCfClearance=${cookieNames.contains('cf_clearance')}, '
+        'userAgentPresent=${verifiedUserAgent?.trim().isNotEmpty == true}, '
+        'urlHost=${Uri.tryParse(request.url)?.host ?? '-'}',
+      );
+    }
     // Header names are lowercased so a rule-supplied 'User-Agent' collides
     // with ours instead of being sent as a second, conflicting header.
     final headers = <String, dynamic>{
