@@ -231,7 +231,17 @@ class RuleEngine {
     final rawError = cause.rawError;
     if (rawError is! DioException) return false;
 
-    final data = rawError.response?.data;
+    final response = rawError.response;
+
+    // Cloudflare marks managed challenge responses with this header.
+    // This is useful when the body is empty, compressed unexpectedly, or
+    // otherwise unavailable to Dio on a specific platform.
+    final cfMitigated = response?.headers.value('cf-mitigated');
+    if (cfMitigated?.toLowerCase() == 'challenge') {
+      return true;
+    }
+
+    final data = response?.data;
     final raw = data is String ? data : data?.toString() ?? '';
     if (raw.trim().isEmpty) return false;
 
