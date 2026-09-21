@@ -90,9 +90,14 @@ class XPathRuleStrategy {
         kind: XPathRuleFormatKind.invalidUrl,
       );
     }
-    // XPath chapter requests historically go out without stored cookies;
-    // only search requests attach them.
-    return PreparedRuleRequest(method: 'GET', url: url);
+    // Chapter/detail pages may be protected by the same anti-crawler
+    // session as search pages. Reuse stored cookies so a clearance obtained
+    // during search verification also applies when fetching the playlist.
+    return PreparedRuleRequest(
+      method: 'GET',
+      url: url,
+      includeCookies: true,
+    );
   }
 
   RuleSearchParseResult parseSearch(
