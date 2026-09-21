@@ -69,6 +69,28 @@ void main() {
     }
   }
 
+  test('direct chapter mode returns source as a single episode', () async {
+    final executor = _FakeExecutor(const []);
+    final engine = RuleEngine(
+      requestExecutor: executor,
+      logFailures: false,
+    );
+
+    final chapters = await engine.queryChapters(
+      _config(
+        searchMode: RuleMode.xpath,
+        chapterMode: RuleMode.direct,
+      ),
+      '/watch?v=123',
+    );
+
+    expect(chapters.rawResponse, isEmpty);
+    expect(chapters.roads, hasLength(1));
+    expect(chapters.roads.single.data, ['https://example.com/watch?v=123']);
+    expect(chapters.roads.single.identifier, ['第1集']);
+    expect(executor.requests, isEmpty);
+  });
+
   test('API search never turns a non-JSON captcha page into captcha flow',
       () async {
     final engine = RuleEngine(
