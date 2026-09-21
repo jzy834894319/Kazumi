@@ -221,6 +221,31 @@ void main() {
     );
   });
 
+  test('turns Cloudflare challenge header into captcha flow', () async {
+    final engine = RuleEngine(
+      requestExecutor: _FakeExecutor(
+        const [],
+        error: _badResponse(
+          '',
+          headers: {'cf-mitigated': ['challenge']},
+        ),
+      ),
+      logFailures: false,
+    );
+
+    await expectLater(
+      engine.search(
+        _config(
+          searchMode: RuleMode.xpath,
+          chapterMode: RuleMode.xpath,
+          antiCrawler: _antiCrawler(),
+        ),
+        'keyword',
+      ),
+      throwsA(isA<CaptchaRequiredException>()),
+    );
+  });
+
   test('keeps failed non-challenge XPath response as search error', () async {
     final engine = RuleEngine(
       requestExecutor: _FakeExecutor(
@@ -287,7 +312,11 @@ void main() {
   });
 }
 
-NetworkException _badResponse(String body, {int statusCode = 403}) {
+NetworkException _badResponse(
+  String body, {
+  int statusCode = 403,
+  Map<String, List<String>>? headers,
+}) {
   final requestOptions = RequestOptions(
     path: 'https://example.com/search?q=keyword',
   );
@@ -301,6 +330,7 @@ NetworkException _badResponse(String body, {int statusCode = 403}) {
         requestOptions: requestOptions,
         statusCode: statusCode,
         data: body,
+        headers: headers == null ? null : Headers.fromMap(headers),
       ),
       type: DioExceptionType.badResponse,
     ),
