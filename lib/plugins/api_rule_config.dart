@@ -1,9 +1,14 @@
 class RuleMode {
   static const String xpath = 'xpath';
   static const String api = 'api';
+  static const String direct = 'direct';
 
   static String normalize(Object? value) {
-    return value == api ? api : xpath;
+    return switch (value) {
+      api => api,
+      direct => direct,
+      _ => xpath,
+    };
   }
 }
 
