@@ -159,6 +159,25 @@ void main() {
     );
   });
 
+  test('XPath chapter requests reuse stored cookies', () async {
+    final executor = _FakeExecutor([xpathResponse]);
+    final engine = RuleEngine(
+      requestExecutor: executor,
+      logFailures: false,
+    );
+
+    await engine.queryChapters(
+      _config(
+        searchMode: RuleMode.xpath,
+        chapterMode: RuleMode.xpath,
+      ),
+      '/video/1',
+    );
+
+    expect(executor.requests, hasLength(1));
+    expect(executor.requests.single.includeCookies, isTrue);
+  });
+
   test('chapter parsing never triggers the search captcha flow', () async {
     final engine = RuleEngine(
       requestExecutor: _FakeExecutor(['<html>captcha</html>']),
