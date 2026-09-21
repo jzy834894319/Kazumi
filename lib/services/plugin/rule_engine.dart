@@ -232,6 +232,7 @@ class RuleEngine {
     if (rawError is! DioException) return false;
 
     final response = rawError.response;
+    _logBadResponseDiagnostics(config, cause, response);
 
     // Cloudflare marks managed challenge responses with this header.
     // This is useful when the body is empty, compressed unexpectedly, or
@@ -259,6 +260,31 @@ class RuleEngine {
       );
       return false;
     }
+  }
+
+  void _logBadResponseDiagnostics(
+    RuleExecutionConfig config,
+    NetworkException cause,
+    Response<dynamic>? response,
+  ) {
+    if (!_logFailures) return;
+    final headers = response?.headers;
+    final data = response?.data;
+    final raw = data is String ? data : data?.toString() ?? '';
+    final normalized = raw.replaceAll(RegExp(r'\\s+'), ' ').trim();
+    final preview =
+        normalized.length <= 500 ? normalized : normalized.substring(0, 500);
+
+    KazumiLogger().w(
+      'Plugin: ${config.pluginName} bad response diagnostics: '
+      'status=${cause.statusCode}, '
+      'server=${headers?.value('server') ?? '-'}, '
+      'content-type=${headers?.value('content-type') ?? '-'}, '
+      'cf-ray=${headers?.value('cf-ray') ?? '-'}, '
+      'cf-mitigated=${headers?.value('cf-mitigated') ?? '-'}, '
+      'bodyLength=${raw.length}, '
+      'bodyPreview=${preview.isEmpty ? '<empty>' : preview}',
+    );
   }
 
   /// Surfaces partially-skipped nodes so incomplete results are traceable
