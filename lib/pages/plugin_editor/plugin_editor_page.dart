@@ -21,6 +21,7 @@ abstract final class _RuleEditorText {
 
   static const modeXPath = 'XPath';
   static const modeApi = 'API';
+  static const modeDirect = '直接播放';
   static const methodGet = 'GET';
   static const methodPost = 'POST';
   static const bodyTypeNone = '无';
@@ -241,12 +242,24 @@ class _PluginEditorPageState extends State<PluginEditorPage> {
   int captchaType = CaptchaType.imageCaptcha;
   int captchaDetectType = CaptchaDetectType.xpath;
 
-  static const List<ButtonSegment<String>> _ruleModeSegments = [
+  static const List<ButtonSegment<String>> _searchRuleModeSegments = [
     ButtonSegment(
       value: RuleMode.xpath,
       label: Text(_RuleEditorText.modeXPath),
     ),
     ButtonSegment(value: RuleMode.api, label: Text(_RuleEditorText.modeApi)),
+  ];
+
+  static const List<ButtonSegment<String>> _chapterRuleModeSegments = [
+    ButtonSegment(
+      value: RuleMode.xpath,
+      label: Text(_RuleEditorText.modeXPath),
+    ),
+    ButtonSegment(value: RuleMode.api, label: Text(_RuleEditorText.modeApi)),
+    ButtonSegment(
+      value: RuleMode.direct,
+      label: Text(_RuleEditorText.modeDirect),
+    ),
   ];
 
   static const List<ButtonSegment<String>> _methodSegments = [
@@ -566,10 +579,14 @@ class _PluginEditorPageState extends State<PluginEditorPage> {
                       ? _RuleEditorText.searchRuleType
                       : _RuleEditorText.chapterRuleType,
                   value: isSearch ? searchMode : chapterMode,
-                  segments: _ruleModeSegments,
-                  description: (mode) => mode == RuleMode.api
-                      ? '请求接口并从 JSON 响应中提取数据。'
-                      : '从网页 HTML 中定位并提取内容。',
+                  segments: isSearch
+                      ? _searchRuleModeSegments
+                      : _chapterRuleModeSegments,
+                  description: (mode) => switch (mode) {
+                    RuleMode.api => '请求接口并从 JSON 响应中提取数据。',
+                    RuleMode.direct => '搜索结果链接就是播放页，不再额外请求选集页面。',
+                    _ => '从网页 HTML 中定位并提取内容。',
+                  },
                   onChanged: (value) => setState(() {
                     if (isSearch) {
                       searchMode = value;
@@ -587,9 +604,12 @@ class _PluginEditorPageState extends State<PluginEditorPage> {
                         ? (searchMode == RuleMode.xpath
                             ? _buildXPathSearchFields()
                             : _buildApiSearchFields())
-                        : (chapterMode == RuleMode.xpath
-                            ? _buildXPathChapterFields()
-                            : _buildApiChapterFields()),
+                        : switch (chapterMode) {
+                            RuleMode.xpath => _buildXPathChapterFields(),
+                            RuleMode.api => _buildApiChapterFields(),
+                            RuleMode.direct => <Widget>[],
+                            _ => _buildXPathChapterFields(),
+                          },
                   ),
                 ),
               ],
