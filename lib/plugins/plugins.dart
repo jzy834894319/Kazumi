@@ -257,8 +257,8 @@ class Plugin {
       return const WebViewPlaylistChapterService().resolve(
         baseUrl: baseUrl,
         source: source,
-        playlistLinkXpath: chapterRoads,
-        episodeXpath: chapterResult,
+        playlistLinkSelector: chapterRoads,
+        episodeSelector: chapterResult,
       );
     }
     return (await traceChapters(source, cancelToken: cancelToken)).roads;
