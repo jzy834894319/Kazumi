@@ -1,5 +1,7 @@
 import 'package:dio/dio.dart';
+import 'package:kazumi/modules/roads/road_module.dart';
 import 'package:kazumi/modules/search/plugin_search_module.dart';
+import 'package:kazumi/utils/episode_url.dart';
 import 'package:kazumi/plugins/api_rule_config.dart';
 import 'package:kazumi/request/clients/plugin_site_client.dart';
 import 'package:kazumi/request/core/network_exception.dart';
@@ -124,6 +126,27 @@ class RuleEngine {
     String source, {
     CancelToken? cancelToken,
   }) async {
+    if (config.chapterMode == RuleMode.direct) {
+      final url = normalizeEpisodeUrl(config.baseUrl, source);
+      final uri = Uri.tryParse(url);
+      if (uri == null || !uri.hasScheme || uri.host.isEmpty) {
+        throw ChapterErrorException(
+          config.pluginName,
+          cause: FormatException('直接播放地址无效: $url'),
+        );
+      }
+      return RuleChapterTrace(
+        rawResponse: '',
+        roads: [
+          Road(
+            name: '播放线路1',
+            data: [url],
+            identifier: const ['第1集'],
+          ),
+        ],
+        diagnostics: const [],
+      );
+    }
     late final PreparedRuleRequest request;
     try {
       request = config.chapterMode == RuleMode.api

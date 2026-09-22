@@ -209,6 +209,10 @@ void main() {
       throwsA(isA<FormatException>()),
     );
   });
+
+  test('normalizes playlist rule mode', () {
+    expect(RuleMode.normalize(RuleMode.playlist), RuleMode.playlist);
+  });
 }
 
 final Map<String, dynamic> _legacyRule = {
