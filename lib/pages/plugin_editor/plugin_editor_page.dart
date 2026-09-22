@@ -22,6 +22,7 @@ abstract final class _RuleEditorText {
   static const modeXPath = 'XPath';
   static const modeApi = 'API';
   static const modeDirect = '直接播放';
+  static const modePlaylist = '播放清单';
   static const methodGet = 'GET';
   static const methodPost = 'POST';
   static const bodyTypeNone = '无';
@@ -259,6 +260,10 @@ class _PluginEditorPageState extends State<PluginEditorPage> {
     ButtonSegment(
       value: RuleMode.direct,
       label: Text(_RuleEditorText.modeDirect),
+    ),
+    ButtonSegment(
+      value: RuleMode.playlist,
+      label: Text(_RuleEditorText.modePlaylist),
     ),
   ];
 
@@ -585,6 +590,8 @@ class _PluginEditorPageState extends State<PluginEditorPage> {
                   description: (mode) => switch (mode) {
                     RuleMode.api => '请求接口并从 JSON 响应中提取数据。',
                     RuleMode.direct => '搜索结果链接就是播放页，不再额外请求选集页面。',
+                    RuleMode.playlist =>
+                      '使用 WebView 从播放页找到清单入口，再从清单页提取剧集。',
                     _ => '从网页 HTML 中定位并提取内容。',
                   },
                   onChanged: (value) => setState(() {
@@ -608,6 +615,7 @@ class _PluginEditorPageState extends State<PluginEditorPage> {
                             RuleMode.xpath => _buildXPathChapterFields(),
                             RuleMode.api => _buildApiChapterFields(),
                             RuleMode.direct => <Widget>[],
+                            RuleMode.playlist => _buildXPathChapterFields(),
                             _ => _buildXPathChapterFields(),
                           },
                   ),
