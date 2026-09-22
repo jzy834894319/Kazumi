@@ -21,6 +21,8 @@ abstract final class _RuleEditorText {
 
   static const modeXPath = 'XPath';
   static const modeApi = 'API';
+  static const modeDirect = '直接播放';
+  static const modePlaylist = '播放清单';
   static const methodGet = 'GET';
   static const methodPost = 'POST';
   static const bodyTypeNone = '无';
@@ -81,6 +83,8 @@ abstract final class _RuleEditorText {
   static const itemLinkXPath = '条目链接（XPath）';
   static const roadListXPath = '播放线路列表（XPath）';
   static const episodeListXPath = '剧集列表（XPath）';
+  static const playlistLinkSelector = '播放清单入口（CSS 选择器）';
+  static const playlistEpisodeSelector = '清单剧集（CSS 选择器）';
 
   static const searchMethod = '搜索请求方法';
   static const searchRequestUrl = '搜索请求地址（URL）';
@@ -241,12 +245,28 @@ class _PluginEditorPageState extends State<PluginEditorPage> {
   int captchaType = CaptchaType.imageCaptcha;
   int captchaDetectType = CaptchaDetectType.xpath;
 
-  static const List<ButtonSegment<String>> _ruleModeSegments = [
+  static const List<ButtonSegment<String>> _searchRuleModeSegments = [
     ButtonSegment(
       value: RuleMode.xpath,
       label: Text(_RuleEditorText.modeXPath),
     ),
     ButtonSegment(value: RuleMode.api, label: Text(_RuleEditorText.modeApi)),
+  ];
+
+  static const List<ButtonSegment<String>> _chapterRuleModeSegments = [
+    ButtonSegment(
+      value: RuleMode.xpath,
+      label: Text(_RuleEditorText.modeXPath),
+    ),
+    ButtonSegment(value: RuleMode.api, label: Text(_RuleEditorText.modeApi)),
+    ButtonSegment(
+      value: RuleMode.direct,
+      label: Text(_RuleEditorText.modeDirect),
+    ),
+    ButtonSegment(
+      value: RuleMode.playlist,
+      label: Text(_RuleEditorText.modePlaylist),
+    ),
   ];
 
   static const List<ButtonSegment<String>> _methodSegments = [
@@ -566,10 +586,16 @@ class _PluginEditorPageState extends State<PluginEditorPage> {
                       ? _RuleEditorText.searchRuleType
                       : _RuleEditorText.chapterRuleType,
                   value: isSearch ? searchMode : chapterMode,
-                  segments: _ruleModeSegments,
-                  description: (mode) => mode == RuleMode.api
-                      ? '请求接口并从 JSON 响应中提取数据。'
-                      : '从网页 HTML 中定位并提取内容。',
+                  segments: isSearch
+                      ? _searchRuleModeSegments
+                      : _chapterRuleModeSegments,
+                  description: (mode) => switch (mode) {
+                    RuleMode.api => '请求接口并从 JSON 响应中提取数据。',
+                    RuleMode.direct => '搜索结果链接就是播放页，不再额外请求选集页面。',
+                    RuleMode.playlist =>
+                      '使用 WebView 从播放页找到清单入口，再从清单页提取剧集。',
+                    _ => '从网页 HTML 中定位并提取内容。',
+                  },
                   onChanged: (value) => setState(() {
                     if (isSearch) {
                       searchMode = value;
@@ -587,9 +613,13 @@ class _PluginEditorPageState extends State<PluginEditorPage> {
                         ? (searchMode == RuleMode.xpath
                             ? _buildXPathSearchFields()
                             : _buildApiSearchFields())
-                        : (chapterMode == RuleMode.xpath
-                            ? _buildXPathChapterFields()
-                            : _buildApiChapterFields()),
+                        : switch (chapterMode) {
+                            RuleMode.xpath => _buildXPathChapterFields(),
+                            RuleMode.api => _buildApiChapterFields(),
+                            RuleMode.direct => <Widget>[],
+                            RuleMode.playlist => _buildXPathChapterFields(),
+                            _ => _buildXPathChapterFields(),
+                          },
                   ),
                 ),
               ],
@@ -790,11 +820,15 @@ class _PluginEditorPageState extends State<PluginEditorPage> {
   List<Widget> _buildXPathChapterFields() => [
         EditorTextField(
           controller: chapterRoadsController,
-          label: _RuleEditorText.roadListXPath,
+          label: chapterMode == RuleMode.playlist
+              ? _RuleEditorText.playlistLinkSelector
+              : _RuleEditorText.roadListXPath,
         ),
         EditorTextField(
           controller: chapterResultController,
-          label: _RuleEditorText.episodeListXPath,
+          label: chapterMode == RuleMode.playlist
+              ? _RuleEditorText.playlistEpisodeSelector
+              : _RuleEditorText.episodeListXPath,
         ),
       ];
 

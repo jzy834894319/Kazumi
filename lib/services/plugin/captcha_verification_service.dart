@@ -231,8 +231,6 @@ class CaptchaVerificationService {
       }
       final cookieString = await controller.getCookieString(_pageUrl);
       final userAgent = await controller.getUserAgent();
-      KazumiLogger().i(
-          '[CaptchaVerificationService] ${logPrefix}Captured cookies: $cookieString');
       if (cookieString.isNotEmpty) {
         await PluginCookieManager.instance.saveFromWebView(
             pluginName, _pageUrl, cookieString,

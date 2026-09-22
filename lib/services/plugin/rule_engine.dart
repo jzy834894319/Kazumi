@@ -1,5 +1,7 @@
 import 'package:dio/dio.dart';
+import 'package:kazumi/modules/roads/road_module.dart';
 import 'package:kazumi/modules/search/plugin_search_module.dart';
+import 'package:kazumi/utils/episode_url.dart';
 import 'package:kazumi/plugins/api_rule_config.dart';
 import 'package:kazumi/request/clients/plugin_site_client.dart';
 import 'package:kazumi/request/core/network_exception.dart';
@@ -51,14 +53,22 @@ class RuleEngine {
       throw SearchErrorException(config.pluginName, cause: error);
     }
 
-    final raw = await _executeRequest(
-      request,
-      config,
-      phase: 'search request',
-      wrapError: (error) =>
-          SearchErrorException(config.pluginName, cause: error),
-      cancelToken: cancelToken,
-    );
+    late final String raw;
+    try {
+      raw = await _executeRequest(
+        request,
+        config,
+        phase: 'search request',
+        wrapError: (error) =>
+            SearchErrorException(config.pluginName, cause: error),
+        cancelToken: cancelToken,
+      );
+    } on SearchErrorException catch (error) {
+      if (_isCaptchaChallengeResponse(error, config)) {
+        throw CaptchaRequiredException(config.pluginName);
+      }
+      rethrow;
+    }
     try {
       final parsed = config.searchMode == RuleMode.api
           ? _apiStrategy.parseSearch(raw, config.searchApiConfig)
@@ -101,6 +111,12 @@ class RuleEngine {
     // rules may render a different page than the real search response.
     if (config.searchMode == RuleMode.api || config.usePost) return null;
     try {
+      final detected = _xpathStrategy.detectsCaptchaChallenge(
+        raw,
+        config.antiCrawlerConfig,
+      );
+      if (detected) return null;
+
       final parsed = _xpathStrategy.parseSearch(raw, config);
       if (parsed.items.isEmpty) return null;
       _logDiagnostics(config, 'harvested search', parsed.diagnostics);
@@ -110,9 +126,10 @@ class RuleEngine {
       );
     } catch (error) {
       if (_logFailures) {
-        KazumiLogger().i(
+        KazumiLogger().w(
           'Plugin: ${config.pluginName} harvested page not parseable, '
-          'falling back to re-search ($error)',
+          'falling back to re-search',
+          error: error,
         );
       }
       return null;
@@ -124,6 +141,27 @@ class RuleEngine {
     String source, {
     CancelToken? cancelToken,
   }) async {
+    if (config.chapterMode == RuleMode.direct) {
+      final url = normalizeEpisodeUrl(config.baseUrl, source);
+      final uri = Uri.tryParse(url);
+      if (uri == null || !uri.hasScheme || uri.host.isEmpty) {
+        throw ChapterErrorException(
+          config.pluginName,
+          cause: FormatException('直接播放地址无效: $url'),
+        );
+      }
+      return RuleChapterTrace(
+        rawResponse: '',
+        roads: [
+          Road(
+            name: '播放线路1',
+            data: [url],
+            identifier: const ['第1集'],
+          ),
+        ],
+        diagnostics: const [],
+      );
+    }
     late final PreparedRuleRequest request;
     try {
       request = config.chapterMode == RuleMode.api
@@ -195,6 +233,61 @@ class RuleEngine {
   bool _isCancellation(Object error) {
     return error is NetworkException &&
         error.type == NetworkExceptionType.cancel;
+  }
+
+  /// Checks whether a failed XPath search request actually returned an
+  /// anti-crawler challenge page.
+  ///
+  /// Dio rejects non-2xx responses before [XPathRuleStrategy.parseSearch]
+  /// gets a chance to inspect the response body. Protected sites commonly
+  /// return challenge HTML with HTTP 403/429/503, so reuse the configured
+  /// captcha detector against the preserved Dio response body and hand the
+  /// request over to the existing captcha flow when it matches.
+  bool _isCaptchaChallengeResponse(
+    SearchErrorException error,
+    RuleExecutionConfig config,
+  ) {
+    if (config.searchMode != RuleMode.xpath ||
+        !config.antiCrawlerConfig.enabled) {
+      return false;
+    }
+
+    final cause = error.cause;
+    if (cause is! NetworkException ||
+        cause.type != NetworkExceptionType.badResponse) {
+      return false;
+    }
+
+    final rawError = cause.rawError;
+    if (rawError is! DioException) return false;
+
+    final response = rawError.response;
+    // Cloudflare marks managed challenge responses with this header.
+    // This is useful when the body is empty, compressed unexpectedly, or
+    // otherwise unavailable to Dio on a specific platform.
+    final cfMitigated = response?.headers.value('cf-mitigated');
+    if (cfMitigated?.toLowerCase() == 'challenge') {
+      return true;
+    }
+
+    final data = response?.data;
+    final raw = data is String ? data : data?.toString() ?? '';
+    if (raw.trim().isEmpty) return false;
+
+    try {
+      return _xpathStrategy.detectsCaptchaChallenge(
+        raw,
+        config.antiCrawlerConfig,
+      );
+    } catch (detectError, stackTrace) {
+      _logFailure(
+        config,
+        'failed response captcha detection',
+        detectError,
+        stackTrace,
+      );
+      return false;
+    }
   }
 
   /// Surfaces partially-skipped nodes so incomplete results are traceable
