@@ -141,9 +141,8 @@ var __kazumiTimer = setInterval(function() {
     final root = parse(raw).documentElement;
     if (root == null) return (<String>[], <String>[]);
 
-    final urls = <String>[];
-    final names = <String>[];
-    final seen = <String>{};
+    final candidates = <String, List<Element>>{};
+    final order = <String>[];
     final nodes = root.queryXPath(xpath).nodes;
 
     for (final result in nodes) {
@@ -152,9 +151,28 @@ var __kazumiTimer = setInterval(function() {
       final href = node.attributes['href']?.trim() ?? '';
       if (href.isEmpty) continue;
       final url = normalizeEpisodeUrl(pageUrl, href);
-      if (!seen.add(url)) continue;
+      if (!candidates.containsKey(url)) order.add(url);
+      candidates.putIfAbsent(url, () => <Element>[]).add(node);
+    }
 
-      final title = node.text.replaceAll(RegExp(r'\s+'), ' ').trim();
+    final urls = <String>[];
+    final names = <String>[];
+    for (final url in order) {
+      final nodesForUrl = candidates[url]!;
+      Element selected = nodesForUrl.first;
+
+      // When a page exposes the same episode URL through thumbnail/stats and
+      // title links, prefer a leaf text link. This keeps the episode label
+      // clean without requiring XPath features unsupported by some parsers.
+      for (final node in nodesForUrl) {
+        final text = node.text.replaceAll(RegExp(r'\s+'), ' ').trim();
+        if (node.children.isEmpty && text.isNotEmpty) {
+          selected = node;
+          break;
+        }
+      }
+
+      final title = selected.text.replaceAll(RegExp(r'\s+'), ' ').trim();
       urls.add(url);
       names.add(title.isEmpty ? '第${urls.length}集' : title);
     }
