@@ -83,8 +83,8 @@ abstract final class _RuleEditorText {
   static const itemLinkXPath = '条目链接（XPath）';
   static const roadListXPath = '播放线路列表（XPath）';
   static const episodeListXPath = '剧集列表（XPath）';
-  static const playlistLinkXPath = '播放清单入口（XPath）';
-  static const playlistEpisodeXPath = '清单剧集（XPath）';
+  static const playlistLinkSelector = '播放清单入口（CSS 选择器）';
+  static const playlistEpisodeSelector = '清单剧集（CSS 选择器）';
 
   static const searchMethod = '搜索请求方法';
   static const searchRequestUrl = '搜索请求地址（URL）';
@@ -821,13 +821,13 @@ class _PluginEditorPageState extends State<PluginEditorPage> {
         EditorTextField(
           controller: chapterRoadsController,
           label: chapterMode == RuleMode.playlist
-              ? _RuleEditorText.playlistLinkXPath
+              ? _RuleEditorText.playlistLinkSelector
               : _RuleEditorText.roadListXPath,
         ),
         EditorTextField(
           controller: chapterResultController,
           label: chapterMode == RuleMode.playlist
-              ? _RuleEditorText.playlistEpisodeXPath
+              ? _RuleEditorText.playlistEpisodeSelector
               : _RuleEditorText.episodeListXPath,
         ),
       ];
