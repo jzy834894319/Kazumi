@@ -231,28 +231,6 @@ class CaptchaVerificationService {
       }
       final cookieString = await controller.getCookieString(_pageUrl);
       final userAgent = await controller.getUserAgent();
-      final cookieNames = cookieString
-          .split(';')
-          .map((part) => part.trim())
-          .where((part) => part.isNotEmpty && part.contains('='))
-          .map((part) => part.substring(0, part.indexOf('=')))
-          .toSet()
-          .toList()
-        ..sort();
-      final hasCfClearance = cookieNames.contains('cf_clearance');
-      final hasSessionCookie = cookieNames.any((name) =>
-          name.toLowerCase().contains('session') ||
-          name.toLowerCase().contains('xsrf'));
-      KazumiLogger().w(
-        '[CaptchaVerificationService] ${logPrefix}Finalize diagnostics: '
-        'cookieNames=$cookieNames, '
-        'hasCfClearance=$hasCfClearance, '
-        'hasSessionCookie=$hasSessionCookie, '
-        'userAgentPresent=${userAgent.trim().isNotEmpty}, '
-        'pageHtmlLength=${pageHtml.length}',
-      );
-      KazumiLogger().i(
-          '[CaptchaVerificationService] ${logPrefix}Captured cookies: $cookieString');
       if (cookieString.isNotEmpty) {
         await PluginCookieManager.instance.saveFromWebView(
             pluginName, _pageUrl, cookieString,
