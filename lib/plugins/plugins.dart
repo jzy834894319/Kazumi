@@ -4,6 +4,7 @@ import 'package:kazumi/plugins/anti_crawler_config.dart';
 import 'package:kazumi/plugins/api_rule_config.dart';
 import 'package:kazumi/request/config/api_endpoints.dart';
 import 'package:kazumi/services/plugin/api_rule_engine.dart';
+import 'package:kazumi/services/plugin/webview_playlist_chapter_service.dart';
 import 'package:kazumi/utils/episode_url.dart';
 import 'package:kazumi/utils/http_headers.dart';
 
@@ -252,6 +253,14 @@ class Plugin {
     String source, {
     RuleCancelToken? cancelToken,
   }) async {
+    if (chapterMode == RuleMode.playlist) {
+      return const WebViewPlaylistChapterService().resolve(
+        baseUrl: baseUrl,
+        source: source,
+        playlistLinkXpath: chapterRoads,
+        episodeXpath: chapterResult,
+      );
+    }
     return (await traceChapters(source, cancelToken: cancelToken)).roads;
   }
 
