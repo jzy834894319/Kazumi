@@ -154,7 +154,7 @@ var __kazumiTimer = setInterval(function() {
       final url = normalizeEpisodeUrl(pageUrl, href);
       if (!seen.add(url)) continue;
 
-      final title = (node.text ?? '').replaceAll(RegExp(r'\s+'), ' ').trim();
+      final title = node.text.replaceAll(RegExp(r'\s+'), ' ').trim();
       urls.add(url);
       names.add(title.isEmpty ? '第${urls.length}集' : title);
     }
