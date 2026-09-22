@@ -115,26 +115,9 @@ class RuleEngine {
         raw,
         config.antiCrawlerConfig,
       );
-      final markerFlags = <String, bool>{
-        'attentionRequired': raw.contains('Attention Required!'),
-        'justAMoment': raw.contains('Just a moment'),
-        'humanVerifyZh': raw.contains('正在验证您是否是真人'),
-        'blocked': raw.contains('Sorry, you have been blocked'),
-      };
-      KazumiLogger().w(
-        'Plugin: ${config.pluginName} harvested search diagnostics: '
-        'bodyLength=${raw.length}, '
-        'captchaDetected=$detected, '
-        'markers=$markerFlags',
-      );
       if (detected) return null;
 
       final parsed = _xpathStrategy.parseSearch(raw, config);
-      KazumiLogger().w(
-        'Plugin: ${config.pluginName} harvested search parsed: '
-        'items=${parsed.items.length}, '
-        'diagnostics=${parsed.diagnostics.length}',
-      );
       if (parsed.items.isEmpty) return null;
       _logDiagnostics(config, 'harvested search', parsed.diagnostics);
       return PluginSearchResponse(
@@ -279,8 +262,6 @@ class RuleEngine {
     if (rawError is! DioException) return false;
 
     final response = rawError.response;
-    _logBadResponseDiagnostics(config, cause, response);
-
     // Cloudflare marks managed challenge responses with this header.
     // This is useful when the body is empty, compressed unexpectedly, or
     // otherwise unavailable to Dio on a specific platform.
@@ -307,31 +288,6 @@ class RuleEngine {
       );
       return false;
     }
-  }
-
-  void _logBadResponseDiagnostics(
-    RuleExecutionConfig config,
-    NetworkException cause,
-    Response<dynamic>? response,
-  ) {
-    if (!_logFailures) return;
-    final headers = response?.headers;
-    final data = response?.data;
-    final raw = data is String ? data : data?.toString() ?? '';
-    final normalized = raw.replaceAll(RegExp(r'\\s+'), ' ').trim();
-    final preview =
-        normalized.length <= 500 ? normalized : normalized.substring(0, 500);
-
-    KazumiLogger().w(
-      'Plugin: ${config.pluginName} bad response diagnostics: '
-      'status=${cause.statusCode}, '
-      'server=${headers?.value('server') ?? '-'}, '
-      'content-type=${headers?.value('content-type') ?? '-'}, '
-      'cf-ray=${headers?.value('cf-ray') ?? '-'}, '
-      'cf-mitigated=${headers?.value('cf-mitigated') ?? '-'}, '
-      'bodyLength=${raw.length}, '
-      'bodyPreview=${preview.isEmpty ? '<empty>' : preview}',
-    );
   }
 
   /// Surfaces partially-skipped nodes so incomplete results are traceable
@@ -377,23 +333,6 @@ class _DefaultRuleRequestExecutor implements RuleRequestExecutor {
     final verifiedUserAgent = cookieHeader.isNotEmpty
         ? PluginCookieManager.instance.userAgentFor(config.pluginName)
         : null;
-    if (request.includeCookies) {
-      final cookieNames = cookieHeader
-          .split(';')
-          .map((part) => part.trim())
-          .where((part) => part.isNotEmpty && part.contains('='))
-          .map((part) => part.substring(0, part.indexOf('=')))
-          .toSet()
-          .toList()
-        ..sort();
-      KazumiLogger().w(
-        'Plugin: ${config.pluginName} request session diagnostics: '
-        'cookieNames=$cookieNames, '
-        'hasCfClearance=${cookieNames.contains('cf_clearance')}, '
-        'userAgentPresent=${verifiedUserAgent?.trim().isNotEmpty == true}, '
-        'urlHost=${Uri.tryParse(request.url)?.host ?? '-'}',
-      );
-    }
     // Header names are lowercased so a rule-supplied 'User-Agent' collides
     // with ours instead of being sent as a second, conflicting header.
     final headers = <String, dynamic>{
