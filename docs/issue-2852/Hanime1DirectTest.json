@@ -1,0 +1,21 @@
+{
+  "api": "8",
+  "type": "anime",
+  "name": "Hanime1DirectTest",
+  "version": "1.0",
+  "muliSources": false,
+  "useWebview": true,
+  "useNativePlayer": true,
+  "usePost": false,
+  "useLegacyParser": true,
+  "adBlocker": true,
+  "userAgent": "",
+  "baseURL": "https://hanime1.me/",
+  "searchURL": "https://hanime1.me/search?query=@keyword",
+  "searchList": "//a[contains(@href,'/watch?v=')]/..",
+  "searchName": "//a[contains(@href,'/watch?v=')]",
+  "searchResult": "//a[contains(@href,'/watch?v=')]",
+  "referer": "https://hanime1.me/",
+  "searchMode": "xpath",
+  "chapterMode": "direct"
+}
