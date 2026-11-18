@@ -1,0 +1,83 @@
+name: Kazumi 2.4.4 playback reproduction
+on:
+  push:
+    branches: ['test/kazumi-2.4.4-direct-playlist']
+permissions:
+  contents: read
+jobs:
+  flutter-test:
+    runs-on: "ubuntu-latest"
+    permissions:
+      contents: read
+    steps:
+      - name: Clone repository
+        uses: actions/checkout@v4
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2.16.0
+        with:
+          channel: stable
+          flutter-version-file: pubspec.yaml
+      - name: Get Flutter dependencies
+        run: flutter pub get
+        shell: bash
+      - name: Install native build tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake ninja-build g++
+        shell: bash
+      - name: Run Flutter tests
+        run: flutter test
+        shell: bash
+
+  flutter-analyze:
+    runs-on: "ubuntu-latest"
+    permissions:
+      contents: read
+    steps:
+      - name: Clone repository
+        uses: actions/checkout@v4
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2.16.0
+        with:
+          channel: stable
+          flutter-version-file: pubspec.yaml
+      - name: Get Flutter dependencies
+        run: flutter pub get
+        shell: bash
+      - name: Analyze Flutter project
+        run: flutter analyze --no-fatal-infos --fatal-warnings
+        shell: bash
+
+  flutter-build-windows:
+    needs: [flutter-test, flutter-analyze]
+    name: "Release for windows"
+    runs-on: "windows-latest"
+    permissions: read-all
+
+    steps:
+      - name: Clone repository
+        uses: actions/checkout@v4
+      - run: choco install yq
+      - name: Enable Git longpaths
+        run: git config --system core.longpaths true
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2.16.0
+        with:
+          channel: stable
+          flutter-version-file: pubspec.yaml
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '18'
+      - run: flutter pub get
+      - run: >-
+          flutter build windows
+      - run: Compress-Archive build/windows/x64/runner/Release/* Kazumi_windows_canary.zip
+      - name: Upload windows outputs
+        id: unsigned-windows-packet-artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows_outputs
+          path: |
+            Kazumi_windows_*.zip

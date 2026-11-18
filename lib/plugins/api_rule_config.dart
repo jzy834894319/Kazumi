@@ -2,6 +2,15 @@ class RuleMode {
   static const String xpath = 'xpath';
   static const String api = 'api';
 
+  static const String direct = 'direct';
+  static const String playlist = 'playlist';
+
+  static String normalizeChapter(Object? value) => switch (value) {
+        direct => direct,
+        playlist => playlist,
+        _ => normalize(value),
+      };
+
   static String normalize(Object? value) {
     return value == api ? api : xpath;
   }
